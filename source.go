@@ -50,3 +50,8 @@ func (s *source) ReadFull(buf []byte) (n int, err error) {
 	s.pos += int64(n)
 	return n + read, err
 }
+
+func (s *source) Unread(buf []byte) {
+	s.buf = append(s.buf, buf...)
+	s.pos -= int64(len(buf))
+}
