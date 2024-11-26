@@ -220,3 +220,7 @@ func (f FrameHeader) SideInfoSize() (sideinfo_size int) {
 func (f FrameHeader) modeExtension() int {
 	return int(f&0x00000030) >> 4
 }
+
+type FullReader interface {
+	ReadFull([]byte) (int, error)
+}
