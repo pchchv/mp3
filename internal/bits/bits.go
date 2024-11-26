@@ -11,6 +11,11 @@ func New(vec []byte) *Bits {
 		vec: vec,
 	}
 }
+
+func Append(bits *Bits, buf []byte) *Bits {
+	return New(append(bits.vec, buf...))
+}
+
 func (b *Bits) Bit() int {
 	if len(b.vec) <= b.bytePos {
 		return 0
