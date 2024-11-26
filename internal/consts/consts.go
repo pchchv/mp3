@@ -17,6 +17,12 @@ const (
 	ModeJointStereo   Mode = 1
 	ModeDualChannel   Mode = 2
 	ModeSingleChannel Mode = 3
+
+	SamplesPerGr  = 576
+	GranulesMpeg1 = 2
+
+	SfBandIndicesLong  = 0
+	SfBandIndicesShort = 1
 )
 
 type Version int

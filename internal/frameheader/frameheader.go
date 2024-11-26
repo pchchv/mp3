@@ -102,6 +102,20 @@ func (f FrameHeader) OriginalOrCopy() int {
 	return int(f&0x00000004) >> 2
 }
 
+// Emphasis returns emphasis - the emphasis indication is here to
+// tell the decoder that the file must be de-emphasized - stored in position 0,1
+func (f FrameHeader) Emphasis() int {
+	return int(f&0x00000003) >> 0
+}
+
+func (f FrameHeader) BytesPerFrame() int {
+	return consts.SamplesPerGr * f.Granules() * 4
+}
+
+func (f FrameHeader) Granules() int {
+	return consts.GranulesMpeg1 >> uint(f.LowSamplingFrequency()) // MPEG2 uses only 1 granule
+}
+
 // modeExtension returns the mode_extension -
 // for use with Joint Stereo -
 // stored in position 4,5
