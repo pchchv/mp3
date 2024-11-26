@@ -185,6 +185,35 @@ func (f FrameHeader) Bitrate() int {
 	return bitrates[f.LowSamplingFrequency()][f.Layer()-1][f.BitrateIndex()]
 }
 
+func (f FrameHeader) FrameSize() (int, error) {
+	freq, err := f.SamplingFrequencyValue()
+	if err != nil {
+		return 0, err
+	}
+
+	size := ((144*f.Bitrate())/freq + int(f.PaddingBit())) >> uint(f.LowSamplingFrequency())
+	return size, nil
+}
+
+func (f FrameHeader) SideInfoSize() (sideinfo_size int) {
+	mono := f.Mode() == consts.ModeSingleChannel
+	if f.LowSamplingFrequency() == 1 {
+		if mono {
+			sideinfo_size = 9
+		} else {
+			sideinfo_size = 17
+		}
+	} else {
+		if mono {
+			sideinfo_size = 17
+		} else {
+			sideinfo_size = 32
+		}
+	}
+
+	return
+}
+
 // modeExtension returns the mode_extension -
 // for use with Joint Stereo -
 // stored in position 4,5
