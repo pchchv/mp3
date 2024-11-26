@@ -5,3 +5,9 @@ type Bits struct {
 	bitPos  int
 	bytePos int
 }
+
+func New(vec []byte) *Bits {
+	return &Bits{
+		vec: vec,
+	}
+}
