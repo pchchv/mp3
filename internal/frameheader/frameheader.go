@@ -1,3 +1,10 @@
+package frameheader
+
+import (
+	"errors"
+
+	"github.com/pchchv/mp3/internal/consts"
+)
 
 // mepg1FrameHeader is MPEG1 Layer 1-3 frame header.
 type FrameHeader uint32
@@ -24,4 +31,21 @@ func (f FrameHeader) LowSamplingFrequency() int {
 		return 0
 	}
 	return 1
+}
+
+// SamplingFrequency returns the SamplingFrequency in Hz stored in position 11,10
+func (f FrameHeader) SamplingFrequency() consts.SamplingFrequency {
+	return consts.SamplingFrequency(int(f&0x00000c00) >> 10)
+}
+
+func (f FrameHeader) SamplingFrequencyValue() (int, error) {
+	switch f.SamplingFrequency() {
+	case 0:
+		return 44100 >> uint(f.LowSamplingFrequency()), nil
+	case 1:
+		return 48000 >> uint(f.LowSamplingFrequency()), nil
+	case 2:
+		return 32000 >> uint(f.LowSamplingFrequency()), nil
+	}
+	return 0, errors.New("mp3: frame header has invalid sample frequency")
 }
