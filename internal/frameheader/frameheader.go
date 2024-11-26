@@ -116,6 +116,43 @@ func (f FrameHeader) Granules() int {
 	return consts.GranulesMpeg1 >> uint(f.LowSamplingFrequency()) // MPEG2 uses only 1 granule
 }
 
+func (f FrameHeader) NumberOfChannels() int {
+	if f.Mode() == consts.ModeSingleChannel {
+		return 1
+	}
+	return 2
+}
+
+// IsValid returns a boolean value indicating whether the header is valid or not.
+func (f FrameHeader) IsValid() bool {
+	const sync = 0xffe00000
+	if (f & sync) != sync {
+		return false
+	}
+
+	if f.ID() == consts.VersionReserved {
+		return false
+	}
+
+	if f.BitrateIndex() == 15 {
+		return false
+	}
+
+	if f.SamplingFrequency() == consts.SamplingFrequencyReserved {
+		return false
+	}
+
+	if f.Layer() == consts.LayerReserved {
+		return false
+	}
+
+	if f.Emphasis() == 2 {
+		return false
+	}
+
+	return true
+}
+
 // modeExtension returns the mode_extension -
 // for use with Joint Stereo -
 // stored in position 4,5
