@@ -43,3 +43,12 @@ func (b *Bits) Bits(num int) int {
 	b.bitPos = (b.bitPos + num) & 0x07
 	return int(tmp)
 }
+
+func (b *Bits) Tail(offset int) []byte {
+	return b.vec[len(b.vec)-offset:]
+}
+
+func (b *Bits) SetPos(pos int) {
+	b.bytePos = pos >> 3
+	b.bitPos = pos & 0x7
+}
