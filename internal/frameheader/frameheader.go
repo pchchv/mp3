@@ -90,6 +90,18 @@ func (f FrameHeader) UseMSStereo() bool {
 	return f.modeExtension()&0x2 != 0
 }
 
+// Copyright returns whether or not
+// this recording is copywritten - stored in position 3
+func (f FrameHeader) Copyright() int {
+	return int(f&0x00000008) >> 3
+}
+
+// OriginalOrCopy returns whether or not
+// this is an Original recording or a copy of one - stored in position 2
+func (f FrameHeader) OriginalOrCopy() int {
+	return int(f&0x00000004) >> 2
+}
+
 // modeExtension returns the mode_extension -
 // for use with Joint Stereo -
 // stored in position 4,5
