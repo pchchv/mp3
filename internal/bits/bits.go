@@ -52,3 +52,7 @@ func (b *Bits) SetPos(pos int) {
 	b.bytePos = pos >> 3
 	b.bitPos = pos & 0x7
 }
+
+func (b *Bits) LenInBytes() int {
+	return len(b.vec)
+}
