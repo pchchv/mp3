@@ -66,3 +66,10 @@ func (f FrameHeader) PaddingBit() int {
 func (f FrameHeader) PrivateBit() int {
 	return int(f&0x00000100) >> 8
 }
+
+// modeExtension returns the mode_extension -
+// for use with Joint Stereo -
+// stored in position 4,5
+func (f FrameHeader) modeExtension() int {
+	return int(f&0x00000030) >> 4
+}
