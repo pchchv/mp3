@@ -10,8 +10,12 @@ const (
 	Layer3        Layer = 1
 	Layer2        Layer = 2
 	Layer1        Layer = 3
+
+	SamplingFrequencyReserved SamplingFrequency = 3
 )
 
 type Version int
 
 type Layer int
+
+type SamplingFrequency int

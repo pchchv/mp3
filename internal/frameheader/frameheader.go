@@ -49,3 +49,20 @@ func (f FrameHeader) SamplingFrequencyValue() (int, error) {
 	}
 	return 0, errors.New("mp3: frame header has invalid sample frequency")
 }
+
+// ProtectionBit returns the protection bit stored in position 16
+func (f FrameHeader) ProtectionBit() int {
+	return int(f&0x00010000) >> 16
+}
+
+// PaddingBit returns the padding bit stored in position 9
+func (f FrameHeader) PaddingBit() int {
+	return int(f&0x00000200) >> 9
+}
+
+// PrivateBit returns the private bit stored in
+// position 8 - this bit may be used to store arbitrary data to be
+// used by an application
+func (f FrameHeader) PrivateBit() int {
+	return int(f&0x00000100) >> 8
+}
