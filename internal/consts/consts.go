@@ -32,3 +32,7 @@ type Layer int
 type SamplingFrequency int
 
 type Mode int
+
+type UnexpectedEOF struct {
+	At string
+}
