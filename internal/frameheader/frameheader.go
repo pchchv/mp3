@@ -67,6 +67,29 @@ func (f FrameHeader) PrivateBit() int {
 	return int(f&0x00000100) >> 8
 }
 
+// Mode returns the channel mode, stored in position 7,6
+func (f FrameHeader) Mode() consts.Mode {
+	return consts.Mode((f & 0x000000c0) >> 6)
+}
+
+// UseIntensityStereo returns a boolean value indicating whether the
+// frame uses intensity stereo.
+func (f FrameHeader) UseIntensityStereo() bool {
+	if f.Mode() != consts.ModeJointStereo {
+		return false
+	}
+	return f.modeExtension()&0x1 != 0
+}
+
+// UseMSStereo returns a boolean value indicating whether the
+// frame uses middle/side stereo.
+func (f FrameHeader) UseMSStereo() bool {
+	if f.Mode() != consts.ModeJointStereo {
+		return false
+	}
+	return f.modeExtension()&0x2 != 0
+}
+
 // modeExtension returns the mode_extension -
 // for use with Joint Stereo -
 // stored in position 4,5

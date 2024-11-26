@@ -12,6 +12,11 @@ const (
 	Layer1        Layer = 3
 
 	SamplingFrequencyReserved SamplingFrequency = 3
+
+	ModeStereo        Mode = 0
+	ModeJointStereo   Mode = 1
+	ModeDualChannel   Mode = 2
+	ModeSingleChannel Mode = 3
 )
 
 type Version int
@@ -19,3 +24,5 @@ type Version int
 type Layer int
 
 type SamplingFrequency int
+
+type Mode int
