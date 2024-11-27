@@ -2,6 +2,7 @@ package frame
 
 import (
 	"github.com/pchchv/mp3/internal/bits"
+	"github.com/pchchv/mp3/internal/consts"
 	"github.com/pchchv/mp3/internal/frameheader"
 	"github.com/pchchv/mp3/internal/maindata"
 	"github.com/pchchv/mp3/internal/sideinfo"
@@ -14,4 +15,12 @@ type Frame struct {
 	mainDataBits *bits.Bits
 	store        [2][32][18]float32
 	v_vec        [2][1024]float32
+}
+
+func getSfBandIndicesArray(header *frameheader.FrameHeader) ([]int, []int) {
+	sfreq := header.SamplingFrequency() // Setup sampling frequency index
+	lsf := header.LowSamplingFrequency()
+	sfBandIndicesShort := consts.SfBandIndices[lsf][sfreq][consts.SfBandIndicesShort]
+	sfBandIndicesLong := consts.SfBandIndices[lsf][sfreq][consts.SfBandIndicesLong]
+	return sfBandIndicesLong, sfBandIndicesShort
 }
