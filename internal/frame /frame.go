@@ -156,6 +156,15 @@ func init() {
 	}
 }
 
+func init() {
+	for i := 0; i < 64; i++ {
+		for j := 0; j < 32; j++ {
+			synthNWin[i][j] =
+				float32(math.Cos(float64((16+i)*(2*j+1)) * (math.Pi / 64.0)))
+		}
+	}
+}
+
 type Frame struct {
 	header       frameheader.FrameHeader
 	sideInfo     *sideinfo.SideInfo
