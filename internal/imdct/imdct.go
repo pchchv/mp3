@@ -2,7 +2,10 @@ package imdct
 
 import "math"
 
-var imdctWinData = [4][36]float32{}
+var (
+	imdctWinData = [4][36]float32{}
+	cosN12       = [6][12]float32{}
+)
 
 func init() {
 	for i := 0; i < 36; i++ {
@@ -37,5 +40,14 @@ func init() {
 	}
 	for i := 18; i < 36; i++ {
 		imdctWinData[3][i] = float32(math.Sin(math.Pi / 36 * (float64(i) + 0.5)))
+	}
+}
+
+func init() {
+	const N = 12
+	for i := 0; i < 6; i++ {
+		for j := 0; j < 12; j++ {
+			cosN12[i][j] = float32(math.Cos(math.Pi / (2 * N) * (2*float64(j) + 1 + N/2) * (2*float64(i) + 1)))
+		}
 	}
 }
