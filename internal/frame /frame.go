@@ -8,10 +8,10 @@ import (
 	"github.com/pchchv/mp3/internal/bits"
 	"github.com/pchchv/mp3/internal/consts"
 	"github.com/pchchv/mp3/internal/frameheader"
+	"github.com/pchchv/mp3/internal/imdct"
 	"github.com/pchchv/mp3/internal/maindata"
 	"github.com/pchchv/mp3/internal/sideinfo"
 )
-
 
 var (
 	synthNWin = [64][32]float32{}
@@ -559,6 +559,31 @@ func (f *Frame) stereo(gr int) {
 					f.stereoProcessIntensityLong(gr, sfb)
 				}
 			}
+		}
+	}
+}
+
+func (f *Frame) hybridSynthesis(gr int, ch int) {
+	// loop through all 32 subbands
+	for sb := 0; sb < 32; sb++ {
+		// determine blocktype for this subband
+		bt := int(f.sideInfo.BlockType[gr][ch])
+		if (f.sideInfo.WinSwitchFlag[gr][ch] == 1) &&
+			(f.sideInfo.MixedBlockFlag[gr][ch] == 1) && (sb < 2) {
+			bt = 0
+		}
+
+		// do the inverse modified DCT and windowing
+		in := make([]float32, 18)
+		for i := range in {
+			in[i] = f.mainData.Is[gr][ch][sb*18+i]
+		}
+
+		rawout := imdct.Win(in, bt)
+		// overlapp add with stored vector into main_data vector
+		for i := 0; i < 18; i++ {
+			f.mainData.Is[gr][ch][sb*18+i] = rawout[i] + f.store[ch][sb][i]
+			f.store[ch][sb][i] = rawout[i+18]
 		}
 	}
 }
