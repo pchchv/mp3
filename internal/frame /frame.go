@@ -8,6 +8,8 @@ import (
 	"github.com/pchchv/mp3/internal/sideinfo"
 )
 
+var isRatios = []float32{0.000000, 0.267949, 0.577350, 1.000000, 1.732051, 3.732051}
+
 type Frame struct {
 	header       frameheader.FrameHeader
 	sideInfo     *sideinfo.SideInfo
@@ -65,6 +67,60 @@ func (f *Frame) reorder(gr int, ch int) {
 		// copy reordered data of last band back to original vector
 		j := 3 * sfBandIndicesShort[12]
 		copy(f.mainData.Is[gr][ch][j:j+3*win_len], re[0:3*win_len])
+	}
+}
+
+func (f *Frame) stereoProcessIntensityLong(gr int, sfb int) {
+	is_ratio_l := float32(0)
+	is_ratio_r := float32(0)
+	// check that((is_pos[sfb]=scalefac) < 7) => no intensity stereo
+	if is_pos := f.mainData.ScalefacL[gr][0][sfb]; is_pos < 7 {
+		sfBandIndicesLong, _ := getSfBandIndicesArray(&f.header)
+		sfb_start := sfBandIndicesLong[sfb]
+		sfb_stop := sfBandIndicesLong[sfb+1]
+		if is_pos == 6 { // tan((6*PI)/12 = PI/2) needs special treatment!
+			is_ratio_l = 1.0
+			is_ratio_r = 0.0
+		} else {
+			is_ratio_l = isRatios[is_pos] / (1.0 + isRatios[is_pos])
+			is_ratio_r = 1.0 / (1.0 + isRatios[is_pos])
+		}
+
+		// now decode all samples in this scale factor band
+		for i := sfb_start; i < sfb_stop; i++ {
+			f.mainData.Is[gr][0][i] *= is_ratio_l
+			f.mainData.Is[gr][1][i] *= is_ratio_r
+		}
+	}
+}
+
+func (f *Frame) stereoProcessIntensityShort(gr int, sfb int) {
+	is_ratio_l := float32(0)
+	is_ratio_r := float32(0)
+	_, sfBandIndicesShort := getSfBandIndicesArray(&f.header)
+	// window length
+	win_len := sfBandIndicesShort[sfb+1] - sfBandIndicesShort[sfb]
+	// windows within the band has different scalefactors
+	for win := 0; win < 3; win++ {
+		// check that((is_pos[sfb]=scalefac) < 7) => no intensity stereo
+		is_pos := f.mainData.ScalefacS[gr][0][sfb][win]
+		if is_pos < 7 {
+			sfb_start := sfBandIndicesShort[sfb]*3 + win_len*win
+			sfb_stop := sfb_start + win_len
+			if is_pos == 6 { // tan((6*PI)/12 = PI/2) needs special treatment!
+				is_ratio_l = 1.0
+				is_ratio_r = 0.0
+			} else {
+				is_ratio_l = isRatios[is_pos] / (1.0 + isRatios[is_pos])
+				is_ratio_r = 1.0 / (1.0 + isRatios[is_pos])
+			}
+
+			// decode all samples in this scale factor band
+			for i := sfb_start; i < sfb_stop; i++ {
+				f.mainData.Is[gr][0][i] *= is_ratio_l
+				f.mainData.Is[gr][1][i] *= is_ratio_r
+			}
+		}
 	}
 }
 
