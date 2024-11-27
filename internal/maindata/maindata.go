@@ -1,3 +1,14 @@
+package maindata
+
+import (
+	"fmt"
+	"io"
+
+	"github.com/pchchv/mp3/internal/bits"
+	"github.com/pchchv/mp3/internal/consts"
+	"github.com/pchchv/mp3/internal/frameheader"
+	"github.com/pchchv/mp3/internal/sideinfo"
+)
 
 var (
 	nSlen2             = initSlen() /* MPEG 2.0 slen for 'normal' mode */
