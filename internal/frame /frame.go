@@ -15,6 +15,8 @@ var (
 	powtab34 = make([]float64, 8207)
 	pretab   = []float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 3, 2, 0}
 	isRatios = []float32{0.000000, 0.267949, 0.577350, 1.000000, 1.732051, 3.732051}
+	cs       = []float32{0.857493, 0.881742, 0.949629, 0.983315, 0.995518, 0.999161, 0.999899, 0.999993}
+	ca       = []float32{-0.514496, -0.471732, -0.313377, -0.181913, -0.094574, -0.040966, -0.014199, -0.003700}
 )
 
 type Frame struct {
@@ -244,6 +246,43 @@ func (f *Frame) requantize(gr int, ch int) {
 				next_sfb = sfBandIndicesLong[sfb+1]
 			}
 			f.requantizeProcessLong(gr, ch, i, sfb)
+		}
+	}
+}
+
+func (f *Frame) frequencyInversion(gr int, ch int) {
+	for sb := 1; sb < 32; sb += 2 {
+		for i := 1; i < 18; i += 2 {
+			f.mainData.Is[gr][ch][sb*18+i] = -f.mainData.Is[gr][ch][sb*18+i]
+		}
+	}
+}
+
+func (f *Frame) antialias(gr int, ch int) {
+	// no antialiasing is done for short blocks
+	if (f.sideInfo.WinSwitchFlag[gr][ch] == 1) &&
+		(f.sideInfo.BlockType[gr][ch] == 2) &&
+		(f.sideInfo.MixedBlockFlag[gr][ch]) == 0 {
+		return
+	}
+
+	// setup the limit for how many subbands to transform
+	sblim := 32
+	if (f.sideInfo.WinSwitchFlag[gr][ch] == 1) &&
+		(f.sideInfo.BlockType[gr][ch] == 2) &&
+		(f.sideInfo.MixedBlockFlag[gr][ch] == 1) {
+		sblim = 2
+	}
+
+	// do the actual antialiasing
+	for sb := 1; sb < sblim; sb++ {
+		for i := 0; i < 8; i++ {
+			li := 18*sb - 1 - i
+			ui := 18*sb + i
+			lb := f.mainData.Is[gr][ch][li]*cs[i] - f.mainData.Is[gr][ch][ui]*ca[i]
+			ub := f.mainData.Is[gr][ch][ui]*cs[i] + f.mainData.Is[gr][ch][li]*ca[i]
+			f.mainData.Is[gr][ch][li] = lb
+			f.mainData.Is[gr][ch][ui] = ub
 		}
 	}
 }
