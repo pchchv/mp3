@@ -561,6 +561,10 @@ func (f *Frame) stereo(gr int) {
 	}
 }
 
+type FullReader interface {
+	ReadFull([]byte) (int, error)
+}
+
 func getSfBandIndicesArray(header *frameheader.FrameHeader) ([]int, []int) {
 	sfreq := header.SamplingFrequency() // Setup sampling frequency index
 	lsf := header.LowSamplingFrequency()
