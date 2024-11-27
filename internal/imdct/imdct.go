@@ -5,6 +5,7 @@ import "math"
 var (
 	imdctWinData = [4][36]float32{}
 	cosN12       = [6][12]float32{}
+	cosN36       = [18][36]float32{}
 )
 
 func init() {
@@ -48,6 +49,15 @@ func init() {
 	for i := 0; i < 6; i++ {
 		for j := 0; j < 12; j++ {
 			cosN12[i][j] = float32(math.Cos(math.Pi / (2 * N) * (2*float64(j) + 1 + N/2) * (2*float64(i) + 1)))
+		}
+	}
+}
+
+func init() {
+	const N = 36
+	for i := 0; i < 18; i++ {
+		for j := 0; j < 36; j++ {
+			cosN36[i][j] = float32(math.Cos(math.Pi / (2 * N) * (2*float64(j) + 1 + N/2) * (2*float64(i) + 1)))
 		}
 	}
 }
