@@ -174,6 +174,80 @@ func (f *Frame) requantizeProcessShort(gr, ch, is_pos, sfb, win int) {
 	f.mainData.Is[gr][ch][is_pos] = float32(tmp1 * tmp2)
 }
 
+func (f *Frame) requantize(gr int, ch int) {
+	sfBandIndicesLong, sfBandIndicesShort := getSfBandIndicesArray(&f.header)
+	// determine type of block to process
+	if f.sideInfo.WinSwitchFlag[gr][ch] == 1 && f.sideInfo.BlockType[gr][ch] == 2 { // Short blocks
+		// check if the first two subbands
+		// (=2*18 samples = 8 long or 3 short sfb's) uses long blocks
+		if f.sideInfo.MixedBlockFlag[gr][ch] != 0 { // 2 longbl. sb  first
+			// first process the 2 long block subbands at the start
+			sfb := 0
+			next_sfb := sfBandIndicesLong[sfb+1]
+			for i := 0; i < 36; i++ {
+				if i == next_sfb {
+					sfb++
+					next_sfb = sfBandIndicesLong[sfb+1]
+				}
+				f.requantizeProcessLong(gr, ch, i, sfb)
+			}
+
+			// and next the remaining,non-zero,bands which uses short blocks
+			sfb = 3
+			next_sfb = sfBandIndicesShort[sfb+1] * 3
+			win_len := sfBandIndicesShort[sfb+1] - sfBandIndicesShort[sfb]
+			for i := 36; i < int(f.sideInfo.Count1[gr][ch]); /* i++ done below! */ {
+				// check if we're into the next scalefac band
+				if i == next_sfb {
+					sfb++
+					next_sfb = sfBandIndicesShort[sfb+1] * 3
+					win_len = sfBandIndicesShort[sfb+1] -
+						sfBandIndicesShort[sfb]
+				}
+
+				for win := 0; win < 3; win++ {
+					for j := 0; j < win_len; j++ {
+						f.requantizeProcessShort(gr, ch, i, sfb, win)
+						i++
+					}
+				}
+
+			}
+		} else { // only short blocks
+			sfb := 0
+			next_sfb := sfBandIndicesShort[sfb+1] * 3
+			win_len := sfBandIndicesShort[sfb+1] -
+				sfBandIndicesShort[sfb]
+			for i := 0; i < int(f.sideInfo.Count1[gr][ch]); /* i++ done below! */ {
+				// check if we're into the next scalefac band
+				if i == next_sfb {
+					sfb++
+					next_sfb = sfBandIndicesShort[sfb+1] * 3
+					win_len = sfBandIndicesShort[sfb+1] -
+						sfBandIndicesShort[sfb]
+				}
+
+				for win := 0; win < 3; win++ {
+					for j := 0; j < win_len; j++ {
+						f.requantizeProcessShort(gr, ch, i, sfb, win)
+						i++
+					}
+				}
+			}
+		}
+	} else { // only long blocks
+		sfb := 0
+		next_sfb := sfBandIndicesLong[sfb+1]
+		for i := 0; i < int(f.sideInfo.Count1[gr][ch]); i++ {
+			if i == next_sfb {
+				sfb++
+				next_sfb = sfBandIndicesLong[sfb+1]
+			}
+			f.requantizeProcessLong(gr, ch, i, sfb)
+		}
+	}
+}
+
 func getSfBandIndicesArray(header *frameheader.FrameHeader) ([]int, []int) {
 	sfreq := header.SamplingFrequency() // Setup sampling frequency index
 	lsf := header.LowSamplingFrequency()
