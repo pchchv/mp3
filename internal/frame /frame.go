@@ -1,6 +1,8 @@
 package frame
 
 import (
+	"math"
+
 	"github.com/pchchv/mp3/internal/bits"
 	"github.com/pchchv/mp3/internal/consts"
 	"github.com/pchchv/mp3/internal/frameheader"
@@ -8,7 +10,12 @@ import (
 	"github.com/pchchv/mp3/internal/sideinfo"
 )
 
-var isRatios = []float32{0.000000, 0.267949, 0.577350, 1.000000, 1.732051, 3.732051}
+
+var (
+	powtab34 = make([]float64, 8207)
+	pretab   = []float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 3, 2, 0}
+	isRatios = []float32{0.000000, 0.267949, 0.577350, 1.000000, 1.732051, 3.732051}
+)
 
 type Frame struct {
 	header       frameheader.FrameHeader
@@ -126,6 +133,45 @@ func (f *Frame) stereoProcessIntensityShort(gr int, sfb int) {
 			}
 		}
 	}
+}
+
+func (f *Frame) requantizeProcessLong(gr, ch, is_pos, sfb int) {
+	sf_mult := 0.5
+	if f.sideInfo.ScalefacScale[gr][ch] != 0 {
+		sf_mult = 1.0
+	}
+
+	pf_x_pt := float64(f.sideInfo.Preflag[gr][ch]) * pretab[sfb]
+	idx := -(sf_mult * (float64(f.mainData.ScalefacL[gr][ch][sfb]) + pf_x_pt)) + 0.25*(float64(f.sideInfo.GlobalGain[gr][ch])-210)
+	tmp1 := math.Pow(2.0, idx)
+	tmp2 := 0.0
+	if f.mainData.Is[gr][ch][is_pos] < 0.0 {
+		tmp2 = -powtab34[int(-f.mainData.Is[gr][ch][is_pos])]
+	} else {
+		tmp2 = powtab34[int(f.mainData.Is[gr][ch][is_pos])]
+	}
+
+	f.mainData.Is[gr][ch][is_pos] = float32(tmp1 * tmp2)
+}
+
+func (f *Frame) requantizeProcessShort(gr, ch, is_pos, sfb, win int) {
+	sf_mult := 0.5
+	if f.sideInfo.ScalefacScale[gr][ch] != 0 {
+		sf_mult = 1.0
+	}
+
+	idx := -(sf_mult * float64(f.mainData.ScalefacS[gr][ch][sfb][win])) +
+		0.25*(float64(f.sideInfo.GlobalGain[gr][ch])-210.0-
+			8.0*float64(f.sideInfo.SubblockGain[gr][ch][win]))
+	tmp1 := math.Pow(2.0, idx)
+	tmp2 := 0.0
+	if f.mainData.Is[gr][ch][is_pos] < 0 {
+		tmp2 = -powtab34[int(-f.mainData.Is[gr][ch][is_pos])]
+	} else {
+		tmp2 = powtab34[int(f.mainData.Is[gr][ch][is_pos])]
+	}
+
+	f.mainData.Is[gr][ch][is_pos] = float32(tmp1 * tmp2)
 }
 
 func getSfBandIndicesArray(header *frameheader.FrameHeader) ([]int, []int) {
