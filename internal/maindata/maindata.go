@@ -159,3 +159,101 @@ func read(source FullReader, prev *bits.Bits, size int, offset int) (*bits.Bits,
 
 	return bits.New(append(vec, buf...)), nil
 }
+
+func getScaleFactorsMpeg1(nch int, m *bits.Bits, header frameheader.FrameHeader, sideInfo *sideinfo.SideInfo) (*MainData, *bits.Bits, error) {
+	md := &MainData{}
+	for gr := 0; gr < 2; gr++ {
+		for ch := 0; ch < nch; ch++ {
+			part_2_start := m.BitPos()
+			// number of bits in the bitstream for the bands
+			slen1 := scalefacSizesMpeg1[sideInfo.ScalefacCompress[gr][ch]][0]
+			slen2 := scalefacSizesMpeg1[sideInfo.ScalefacCompress[gr][ch]][1]
+			if sideInfo.WinSwitchFlag[gr][ch] == 1 && sideInfo.BlockType[gr][ch] == 2 {
+				if sideInfo.MixedBlockFlag[gr][ch] != 0 {
+					for sfb := 0; sfb < 8; sfb++ {
+						md.ScalefacL[gr][ch][sfb] = m.Bits(slen1)
+					}
+					for sfb := 3; sfb < 12; sfb++ {
+						// slen1 for band 3-5,slen2 for 6-11
+						nbits := slen2
+						if sfb < 6 {
+							nbits = slen1
+						}
+
+						for win := 0; win < 3; win++ {
+							md.ScalefacS[gr][ch][sfb][win] = m.Bits(nbits)
+						}
+					}
+				} else {
+					for sfb := 0; sfb < 12; sfb++ {
+						// slen1 for band 3-5,slen2 for 6-11
+						nbits := slen2
+						if sfb < 6 {
+							nbits = slen1
+						}
+
+						for win := 0; win < 3; win++ {
+							md.ScalefacS[gr][ch][sfb][win] = m.Bits(nbits)
+						}
+					}
+				}
+			} else {
+				// scale factor bands 0-5
+				if sideInfo.Scfsi[ch][0] == 0 || gr == 0 {
+					for sfb := 0; sfb < 6; sfb++ {
+						md.ScalefacL[gr][ch][sfb] = m.Bits(slen1)
+					}
+				} else if sideInfo.Scfsi[ch][0] == 1 && gr == 1 {
+					// copy scalefactors from granule 0 to granule 1
+					for sfb := 0; sfb < 6; sfb++ {
+						md.ScalefacL[1][ch][sfb] = md.ScalefacL[0][ch][sfb]
+					}
+				}
+
+				// scale factor bands 6-10
+				if sideInfo.Scfsi[ch][1] == 0 || gr == 0 {
+					for sfb := 6; sfb < 11; sfb++ {
+						md.ScalefacL[gr][ch][sfb] = m.Bits(slen1)
+					}
+				} else if sideInfo.Scfsi[ch][1] == 1 && gr == 1 {
+					// copy scalefactors from granule 0 to granule 1
+					for sfb := 6; sfb < 11; sfb++ {
+						md.ScalefacL[1][ch][sfb] = md.ScalefacL[0][ch][sfb]
+					}
+				}
+
+				// scale factor bands 11-15
+				if sideInfo.Scfsi[ch][2] == 0 || gr == 0 {
+					for sfb := 11; sfb < 16; sfb++ {
+						md.ScalefacL[gr][ch][sfb] = m.Bits(slen2)
+					}
+				} else if sideInfo.Scfsi[ch][2] == 1 && gr == 1 {
+					// copy scalefactors from granule 0 to granule 1
+					for sfb := 11; sfb < 16; sfb++ {
+						md.ScalefacL[1][ch][sfb] = md.ScalefacL[0][ch][sfb]
+					}
+				}
+
+				// scale factor bands 16-20
+				if sideInfo.Scfsi[ch][3] == 0 || gr == 0 {
+					for sfb := 16; sfb < 21; sfb++ {
+						md.ScalefacL[gr][ch][sfb] = m.Bits(slen2)
+					}
+				} else if sideInfo.Scfsi[ch][3] == 1 && gr == 1 {
+					// copy scalefactors from granule 0 to granule 1
+					for sfb := 16; sfb < 21; sfb++ {
+						md.ScalefacL[1][ch][sfb] = md.ScalefacL[0][ch][sfb]
+					}
+				}
+			}
+
+			// read Huffman coded data. Skip stuffing bits
+			if err := readHuffman(m, header, sideInfo, md, part_2_start, gr, ch); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
+	// ancillary data is stored here,but we ignore it.
+	return md, m, nil
+}
