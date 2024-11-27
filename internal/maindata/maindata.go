@@ -122,3 +122,40 @@ func getScaleFactorsMpeg2(m *bits.Bits, header frameheader.FrameHeader, sideInfo
 	// ancillary data is stored here,but we ignore it
 	return md, m, nil
 }
+
+func read(source FullReader, prev *bits.Bits, size int, offset int) (*bits.Bits, error) {
+	if size > 1500 {
+		return nil, fmt.Errorf("mp3: size = %d", size)
+	}
+	// check that there's data available from previous frames if needed
+	if prev != nil && offset > prev.LenInBytes() {
+		// does not exist, so decoding of this frame is skipped,
+		// but it is necessary to read main_data bits from the
+		// bitstream in case they are needed for decoding the next frame
+		buf := make([]byte, size)
+		if n, err := source.ReadFull(buf); n < size {
+			if err == io.EOF {
+				return nil, &consts.UnexpectedEOF{At: "maindata.Read (1)"}
+			}
+			return nil, err
+		}
+		return bits.Append(prev, buf), nil
+	}
+
+	// copy data from previous frames
+	vec := []byte{}
+	if prev != nil {
+		vec = prev.Tail(offset)
+	}
+
+	// read the main_data from file
+	buf := make([]byte, size)
+	if n, err := source.ReadFull(buf); n < size {
+		if err == io.EOF {
+			return nil, &consts.UnexpectedEOF{At: "maindata.Read (2)"}
+		}
+		return nil, err
+	}
+
+	return bits.New(append(vec, buf...)), nil
+}
