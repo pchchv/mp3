@@ -485,6 +485,67 @@ func (f *Frame) subbandSynthesis(gr int, ch int, out []byte) {
 	}
 }
 
+func (f *Frame) stereo(gr int) {
+	if f.header.UseMSStereo() {
+		// determine how many frequency lines to transform
+		i := 1
+		if f.sideInfo.Count1[gr][0] > f.sideInfo.Count1[gr][1] {
+			i = 0
+		}
+
+		max_pos := int(f.sideInfo.Count1[gr][i])
+		// do the actual processing
+		const invSqrt2 = math.Sqrt2 / 2
+		for i := 0; i < max_pos; i++ {
+			left := (f.mainData.Is[gr][0][i] + f.mainData.Is[gr][1][i]) * invSqrt2
+			right := (f.mainData.Is[gr][0][i] - f.mainData.Is[gr][1][i]) * invSqrt2
+			f.mainData.Is[gr][0][i] = left
+			f.mainData.Is[gr][1][i] = right
+		}
+	}
+
+	if f.header.UseIntensityStereo() {
+		sfBandIndicesLong, sfBandIndicesShort := getSfBandIndicesArray(&f.header)
+		// First band that is intensity stereo encoded is first band scale factor band on or above count1 frequency line. N.B.:
+		// Intensity stereo coding is only done for higher subbands,
+		// but logic is here for lower subbands.
+		// Determine type of block to process
+		if (f.sideInfo.WinSwitchFlag[gr][0] == 1) &&
+			(f.sideInfo.BlockType[gr][0] == 2) { // short blocks
+			// check if the first two subbands
+			// (=2*18 samples = 8 long or 3 short sfb's) uses long blocks
+			if f.sideInfo.MixedBlockFlag[gr][0] != 0 { // 2 longbl. sb  first
+				for sfb := 0; sfb < 8; sfb++ { // first process 8 sfb's at start
+					if sfBandIndicesLong[sfb] >= f.sideInfo.Count1[gr][1] {
+						f.stereoProcessIntensityLong(gr, sfb)
+					}
+				}
+
+				// and next the remaining bands which uses short blocks
+				for sfb := 3; sfb < 12; sfb++ {
+					// is this scale factor band above count1 for the right channel?
+					if sfBandIndicesShort[sfb]*3 >= f.sideInfo.Count1[gr][1] {
+						f.stereoProcessIntensityShort(gr, sfb)
+					}
+				}
+			} else { // only short blocks
+				for sfb := 0; sfb < 12; sfb++ {
+					// Is this scale factor band above count1 for the right channel?
+					if sfBandIndicesShort[sfb]*3 >= f.sideInfo.Count1[gr][1] {
+						f.stereoProcessIntensityShort(gr, sfb)
+					}
+				}
+			}
+		} else { // only long blocks
+			for sfb := 0; sfb < 21; sfb++ {
+				if sfBandIndicesLong[sfb] >= f.sideInfo.Count1[gr][1] {
+					f.stereoProcessIntensityLong(gr, sfb)
+				}
+			}
+		}
+	}
+}
+
 func getSfBandIndicesArray(header *frameheader.FrameHeader) ([]int, []int) {
 	sfreq := header.SamplingFrequency() // Setup sampling frequency index
 	lsf := header.LowSamplingFrequency()
