@@ -19,6 +19,10 @@ var (
 			{12, 12, 12, 0}, {12, 9, 9, 6}, {15, 12, 9, 0}},
 		{{6, 9, 9, 9}, {6, 9, 12, 6}, {15, 18, 0, 0},
 			{6, 15, 12, 0}, {6, 12, 9, 6}, {6, 18, 9, 0}}}
+	scalefacSizesMpeg1 = [16][2]int{
+		{0, 0}, {0, 1}, {0, 2}, {0, 3}, {3, 0}, {1, 1}, {1, 2}, {1, 3},
+		{2, 1}, {2, 2}, {2, 3}, {3, 1}, {3, 2}, {3, 3}, {4, 2}, {4, 3},
+	}
 )
 
 type FullReader interface {
@@ -61,6 +65,40 @@ func initSlen() (nSlen2 [512]int) {
 	}
 
 	return
+}
+
+func Read(source FullReader, prev *bits.Bits, header frameheader.FrameHeader, sideInfo *sideinfo.SideInfo) (*MainData, *bits.Bits, error) {
+	nch := header.NumberOfChannels()
+	// calculate header audio data size
+	framesize, err := header.FrameSize()
+	if err != nil {
+		return nil, nil, err
+	} else if framesize > 2000 {
+		return nil, nil, fmt.Errorf("mp3: framesize = %d", framesize)
+	}
+
+	sideinfo_size := header.SideInfoSize()
+	// main data size is the rest of the frame,including ancillary data
+	main_data_size := framesize - sideinfo_size - 4 // sync+header
+	// CRC is 2 bytes
+	if header.ProtectionBit() == 0 {
+		main_data_size -= 2
+	}
+
+	// Assemble main data buffer with data from this frame and the previous two frames.
+	// main_data_begin indicates how many bytes from previous frames that should be used.
+	// This buffer is later accessed by the Bits function in the same way as the side info is.
+	m, err := read(source, prev, main_data_size, sideInfo.MainDataBegin)
+	if err != nil {
+		// this could be due to not enough data in reservoir
+		return nil, nil, err
+	}
+
+	if header.LowSamplingFrequency() == 1 {
+		return getScaleFactorsMpeg2(m, header, sideInfo)
+	}
+
+	return getScaleFactorsMpeg1(nch, m, header, sideInfo)
 }
 
 func getScaleFactorsMpeg2(m *bits.Bits, header frameheader.FrameHeader, sideInfo *sideinfo.SideInfo) (*MainData, *bits.Bits, error) {
