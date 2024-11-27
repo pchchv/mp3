@@ -578,6 +578,56 @@ func readCRC(source FullReader) error {
 	return nil
 }
 
+func Read(source FullReader, position int64, prev *Frame) (frame *Frame, startPosition int64, err error) {
+	h, pos, err := frameheader.Read(source, position)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if h.ProtectionBit() == 0 {
+		if err := readCRC(source); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	if h.ID() == consts.Version2_5 {
+		return nil, 0, fmt.Errorf("mp3: MPEG version 2.5 is not supported")
+	} else if h.Layer() != consts.Layer3 {
+		return nil, 0, fmt.Errorf("mp3: only layer3 (want %d; got %d) is supported", consts.Layer3, h.Layer())
+	}
+
+	si, err := sideinfo.Read(source, h)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// if there's not enough main data in the bit reservoir,
+	// signal to calling function so that decoding isn't done
+	// Get main data (scalefactors and Huffman coded frequency data)
+	var prevM *bits.Bits
+	if prev != nil {
+		prevM = prev.mainDataBits
+	}
+
+	md, mdb, err := maindata.Read(source, prevM, h, si)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	nf := &Frame{
+		header:       h,
+		sideInfo:     si,
+		mainData:     md,
+		mainDataBits: mdb,
+	}
+	if prev != nil {
+		nf.store = prev.store
+		nf.v_vec = prev.v_vec
+	}
+
+	return nf, pos, nil
+}
+
 func getSfBandIndicesArray(header *frameheader.FrameHeader) ([]int, []int) {
 	sfreq := header.SamplingFrequency() // Setup sampling frequency index
 	lsf := header.LowSamplingFrequency()
