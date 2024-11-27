@@ -180,6 +180,27 @@ func (f *Frame) SamplingFrequency() (int, error) {
 	return f.header.SamplingFrequencyValue()
 }
 
+func (f *Frame) Decode() []byte {
+	out := make([]byte, f.header.BytesPerFrame())
+	nch := f.header.NumberOfChannels()
+	for gr := 0; gr < f.header.Granules(); gr++ {
+		for ch := 0; ch < nch; ch++ {
+			f.requantize(gr, ch)
+			f.reorder(gr, ch)
+		}
+
+		f.stereo(gr)
+		for ch := 0; ch < nch; ch++ {
+			f.antialias(gr, ch)
+			f.hybridSynthesis(gr, ch)
+			f.frequencyInversion(gr, ch)
+			f.subbandSynthesis(gr, ch, out[consts.SamplesPerGr*4*gr:])
+		}
+	}
+
+	return out
+}
+
 func (f *Frame) reorder(gr int, ch int) {
 	re := make([]float32, consts.SamplesPerGr)
 	_, sfBandIndicesShort := getSfBandIndicesArray(&f.header)
