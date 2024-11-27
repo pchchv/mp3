@@ -150,6 +150,12 @@ var (
 	}
 )
 
+func init() {
+	for i := range powtab34 {
+		powtab34[i] = math.Pow(float64(i), 4.0/3.0)
+	}
+}
+
 type Frame struct {
 	header       frameheader.FrameHeader
 	sideInfo     *sideinfo.SideInfo
