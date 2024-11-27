@@ -19,6 +19,10 @@ type Frame struct {
 	v_vec        [2][1024]float32
 }
 
+func (f *Frame) SamplingFrequency() (int, error) {
+	return f.header.SamplingFrequencyValue()
+}
+
 func (f *Frame) reorder(gr int, ch int) {
 	re := make([]float32, consts.SamplesPerGr)
 	_, sfBandIndicesShort := getSfBandIndicesArray(&f.header)
