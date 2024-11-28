@@ -1,6 +1,7 @@
 package mp3
 
 import (
+	"errors"
 	"io"
 
 	"github.com/pchchv/mp3/internal/consts"
@@ -34,6 +35,76 @@ func (d *Decoder) Length() int64 {
 // Note that the sample rate is retrieved from the first frame.
 func (d *Decoder) SampleRate() int {
 	return d.sampleRate
+}
+
+// Seek returns an error when the underlying source is not io.Seeker.
+// Note that seek uses a byte offset but samples are aligned to 4 bytes
+// (2 channels, 2 bytes each).
+func (d *Decoder) Seek(offset int64, whence int) (int64, error) {
+	if offset == 0 && whence == io.SeekCurrent {
+		// handle the special case of asking for the current position specially
+		return d.pos, nil
+	}
+
+	npos := int64(0)
+	switch whence {
+	case io.SeekStart:
+		npos = offset
+	case io.SeekCurrent:
+		npos = d.pos + offset
+	case io.SeekEnd:
+		npos = d.Length() + offset
+	default:
+		return 0, errors.New("mp3: invalid whence")
+	}
+
+	d.pos = npos
+	d.buf = nil
+	d.frame = nil
+	f := d.pos / d.bytesPerFrame
+	// if the frame is not first,
+	// read the previous ahead of reading that because the
+	// previous frame can affect the targeted frame
+	if f > 0 {
+		f--
+		if _, err := d.source.Seek(d.frameStarts[f], 0); err != nil {
+			return 0, err
+		}
+
+		if err := d.readFrame(); err != nil {
+			return 0, err
+		}
+
+		if err := d.readFrame(); err != nil {
+			return 0, err
+		}
+		d.buf = d.buf[d.bytesPerFrame+(d.pos%d.bytesPerFrame):]
+	} else {
+		if _, err := d.source.Seek(d.frameStarts[f], 0); err != nil {
+			return 0, err
+		}
+
+		if err := d.readFrame(); err != nil {
+			return 0, err
+		}
+		d.buf = d.buf[d.pos:]
+	}
+
+	return npos, nil
+}
+
+// Read is io.Reader's Read.
+func (d *Decoder) Read(buf []byte) (int, error) {
+	for len(d.buf) == 0 {
+		if err := d.readFrame(); err != nil {
+			return 0, err
+		}
+	}
+
+	n := copy(buf, d.buf)
+	d.buf = d.buf[n:]
+	d.pos += int64(n)
+	return n, nil
 }
 
 func (d *Decoder) readFrame() (err error) {
