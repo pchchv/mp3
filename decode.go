@@ -24,6 +24,40 @@ type Decoder struct {
 	bytesPerFrame int64
 }
 
+// NewDecoder decodes the given io.Reader and returns a decoded stream.
+// The stream is always formatted as 16bit (little endian)
+// 2 channels even if the source is single channel MP3.
+// Thus, a sample always consists of 4 bytes.
+func NewDecoder(r io.Reader) (*Decoder, error) {
+	s := &source{
+		reader: r,
+	}
+	d := &Decoder{
+		source: s,
+		length: invalidLength,
+	}
+
+	if err := s.skipTags(); err != nil {
+		return nil, err
+	}
+
+	if err := d.readFrame(); err != nil {
+		return nil, err
+	}
+
+	freq, err := d.frame.SamplingFrequency()
+	if err != nil {
+		return nil, err
+	}
+	d.sampleRate = freq
+
+	if err = d.ensureFrameStartsAndLength(); err != nil {
+		return nil, err
+	}
+
+	return d, nil
+}
+
 // Length returns the total size in bytes.
 // Length returns -1 when the total size is not available
 // e.g. when the given source is not io.Seeker.
